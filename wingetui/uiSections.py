@@ -96,7 +96,7 @@ class DiscoverSoftwareSection(QWidget):
         v.setSpacing(0)
         v.setContentsMargins(0, 0, 0, 0)
         self.discoverLabel = QLabel(_("Discover Packages"))
-        self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         v.addWidget(self.discoverLabel)
 
         self.titleWidget = QWidget()
@@ -276,7 +276,8 @@ class DiscoverSoftwareSection(QWidget):
         self.installIcon = QIcon(getMedia("install"))
         self.IDIcon = QIcon(getMedia("ID"))
         self.versionIcon = QIcon(getMedia("newversion"))
-        self.providerIcon = QIcon(getMedia("provider"))
+        self.wingetIcon = QIcon(getMedia("winget"))
+        self.scoopIcon = QIcon(getMedia("scoop"))
 
         if not getSettings("DisableWinget"):
             Thread(target=wingetHelpers.searchForPackage, args=(self.addProgram, self.finishLoading), daemon=True).start()
@@ -395,7 +396,10 @@ class DiscoverSoftwareSection(QWidget):
             item.setIcon(0, self.installIcon)
             item.setIcon(1, self.IDIcon)
             item.setIcon(2, self.versionIcon)
-            item.setIcon(3, self.providerIcon)
+            if "scoop" in store.lower():
+                item.setIcon(3, self.scoopIcon)
+            else:
+                item.setIcon(3, self.wingetIcon)
             item.setText(3, store)
             item.setText(2, version)
             self.packageList.addTopLevelItem(item)
@@ -484,11 +488,11 @@ class DiscoverSoftwareSection(QWidget):
         if self.discoverLabelDefaultWidth > self.titleWidget.width():
             if not self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = True
-                self.discoverLabel.setStyleSheet("font-size: 15pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 15pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         else:
             if self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = False
-                self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
 
         self.forceCheckBox.setFixedWidth(self.forceCheckBox.sizeHint().width()+10)
         if self.toolbarDefaultWidth == 0:
@@ -592,7 +596,7 @@ class UpdateSoftwareSection(QWidget):
         v.setSpacing(0)
         v.setContentsMargins(0, 0, 0, 0)
         self.discoverLabel = QLabel(_("Software Updates"))
-        self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         v.addWidget(self.discoverLabel)
 
         self.titleWidget = QWidget()
@@ -863,7 +867,8 @@ class UpdateSoftwareSection(QWidget):
         self.IDIcon = QIcon(getMedia("ID"))
         self.versionIcon = QIcon(getMedia("version"))
         self.newVersionIcon = QIcon(getMedia("newversion"))
-        self.providerIcon = QIcon(getMedia("provider"))
+        self.wingetIcon = QIcon(getMedia("winget"))
+        self.scoopIcon = QIcon(getMedia("scoop"))
 
         self.blacklist = getSettingsValue("BlacklistedUpdates")
         if not getSettings("DisableWinget"):
@@ -983,7 +988,10 @@ class UpdateSoftwareSection(QWidget):
                 item.setText(4, newVersion)
                 item.setIcon(4, self.newVersionIcon)
                 item.setText(5, store)
-                item.setIcon(5, self.providerIcon)
+                if "scoop" in store.lower():
+                    item.setIcon(5, self.scoopIcon)
+                else:
+                    item.setIcon(5, self.wingetIcon)
                 self.packageList.addTopLevelItem(item)
                 c = QCheckBox()
                 c.setChecked(True)
@@ -1135,11 +1143,11 @@ class UpdateSoftwareSection(QWidget):
         if self.discoverLabelDefaultWidth > self.titleWidget.width():
             if not self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = True
-                self.discoverLabel.setStyleSheet("font-size: 15pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 15pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         else:
             if self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = False
-                self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
 
         if self.toolbarDefaultWidth == 0:
             self.toolbarDefaultWidth = self.toolbar.sizeHint().width()+10
@@ -1245,7 +1253,7 @@ class UninstallSoftwareSection(QWidget):
         v.setSpacing(0)
         v.setContentsMargins(0, 0, 0, 0)
         self.discoverLabel = QLabel(_("Installed Packages"))
-        self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         v.addWidget(self.discoverLabel)
 
         self.titleWidget = QWidget()
@@ -1481,7 +1489,9 @@ class UninstallSoftwareSection(QWidget):
         self.installIcon = QIcon(getMedia("install"))
         self.IDIcon = QIcon(getMedia("ID"))
         self.versionIcon = QIcon(getMedia("version"))
-        self.providerIcon = QIcon(getMedia("provider"))
+        self.wingetIcon = QIcon(getMedia("winget"))
+        self.scoopIcon = QIcon(getMedia("scoop"))
+        self.localIcon = QIcon(getMedia("localpc"))
         
     
         if not getSettings("DisableWinget"):
@@ -1591,11 +1601,11 @@ class UninstallSoftwareSection(QWidget):
         if self.discoverLabelDefaultWidth > self.titleWidget.width():
             if not self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = True
-                self.discoverLabel.setStyleSheet("font-size: 15pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 15pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         else:
             if self.discoverLabelIsSmall:
                 self.discoverLabelIsSmall = False
-                self.discoverLabel.setStyleSheet("font-size: 30pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+                self.discoverLabel.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
 
         if self.toolbarDefaultWidth == 0:
             self.toolbarDefaultWidth = self.toolbar.sizeHint().width()+2
@@ -1640,7 +1650,12 @@ class UninstallSoftwareSection(QWidget):
             item.setIcon(2, self.IDIcon)
             item.setIcon(3, self.versionIcon)
             item.setText(3, version)
-            item.setIcon(4, self.providerIcon)
+            if "scoop" in store.lower():
+                item.setIcon(4, self.scoopIcon)
+            elif "winget" in store.lower():
+                item.setIcon(4, self.wingetIcon)
+            else:
+                item.setIcon(4, self.localIcon)
             item.setText(4, store)
             c = QCheckBox()
             c.setChecked(False)
@@ -1811,7 +1826,7 @@ class AboutSection(QScrollArea):
         self.announcements = QAnnouncements()
         self.layout.addWidget(self.announcements)
         title = QLabel(_("Component Information"))
-        title.setStyleSheet(f"font-size: 40px;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        title.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         self.layout.addWidget(title)
 
         self.layout.addSpacing(15)
@@ -1848,7 +1863,7 @@ class AboutSection(QScrollArea):
         table.cornerWidget().setStyleSheet("background: transparent;")
         self.layout.addWidget(table)
         title = QLabel(_("About WingetUI version {0}").format(versionName))
-        title.setStyleSheet(f"font-size: 40px;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        title.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         self.layout.addWidget(title)
         self.layout.addSpacing(5)
         description = QLinkLabel(_("The main goal of this project is to create an intuitive UI to manage the most common CLI package managers for Windows, such as Winget and Scoop.")+"\n"+_("This project has no connection with the official {0} project — it's completely unofficial.").format(f"<a style=\"color: {blueColor};\" href=\"https://github.com/microsoft/winget-cli\">Winget</a>"))
@@ -1857,32 +1872,32 @@ class AboutSection(QScrollArea):
         self.layout.addWidget(QLinkLabel(f"{_('Homepage')}:   <a style=\"color: {blueColor};\" href=\"https://github.com/martinet101/WingetUI\">https://github.com/martinet101/WingetUI</a>"))
         self.layout.addSpacing(30)
 
-        self.layout.addWidget(QLinkLabel(f"{_('Contributors')}:", "font-size: 22pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;"))        
+        self.layout.addWidget(QLinkLabel(f"{_('Contributors')}:", f"font-size: 22pt;font-family: \"{globals.dispfont}\";font-weight: bold;"))        
         self.layout.addWidget(QLinkLabel(_("WingetUI wouldn't have been possible with the help of our dear contributors. Check out their GitHub profile, WingetUI wouldn't be possible without them!")))
         GHcontributors = "<ul>"
-        for user in ("ppvnf", "RavenMacDaddy", "vedantmgoyal2009", "Satanarious", "sitiom", "harleylara", "victorelec14", "neoOpus"):
+        for user in ("ppvnf", "RavenMacDaddy", "MisterEvans78", "vedantmgoyal2009", "sklart", "Satanarious", "sitiom", "harleylara", "victorelec14", "neoOpus"):
             GHcontributors += f"<li><a style=\"color:{blueColor}\" href=\"https://github.com/{user}\">{user}</a></li>"
         GHcontributors += "</ul>"
         self.layout.addWidget(QLinkLabel(GHcontributors))
         self.layout.addSpacing(15)
 
-        self.layout.addWidget(QLinkLabel(f"{_('Translators')}:", "font-size: 22pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;"))        
+        self.layout.addWidget(QLinkLabel(f"{_('Translators')}:", f"font-size: 22pt;font-family: \"{globals.dispfont}\";font-weight: bold;"))        
         self.layout.addWidget(QLinkLabel(_("WingetUI has not been machine translated. The following users have been in charge of the translations:")))
         translators = "<ul>"
-        for user in ("Ahmet Özmetin: Turkish", "BUGP Association: Chinese", "Datacra5H: German", "Evans: French", "Operator404: Ukranian", "ppvnf: Portuguese (Portugal and Brazil)", "Satyam Singh Niranjan: Hindi", "Martí Climent: Catalan"):
+        for user in ("Aaron liu: Chinese", "Ahmet Özmetin: Turkish", "Artem Moldovanenko: Ukranian", "BUGP Association: Chinese", "Cololi: Chinese", "Datacra5H: German", "Evans: French", "GiacoBot: Italian", "Gidano: Hungarian", "Maicol Battistini: Italian", "Nemanja Djurcic: Serbian, Croatian", "Operator404: Ukranian", "ppvnf: Portuguese (Portugal and Brazil)", "Rosario Di Mauro: Italian", "Satyam Singh Niranjan: Hindi", "Sergey: Russian", "sho9029: Japanese", "TAKASE, Yuki: Japanese", "yrctw: Chinese", "Артем: Russian", "Martí Climent: Catalan"):
             translators += f"<li>{user}</li>"
         translators += "</ul><br>"
         translators += _("Do you want to translate WingetUI to your language? See how to contribute <a style=\"color:{0}\" href=\"{1}\"a>HERE!</a>").format(blueColor, "https://github.com/martinet101/WingetUI/wiki#translating-wingetui")
         self.layout.addWidget(QLinkLabel(translators))
         self.layout.addSpacing(15)
         
-        self.layout.addWidget(QLinkLabel(f"{_('About the dev')}:", "font-size: 22pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;"))        
+        self.layout.addWidget(QLinkLabel(f"{_('About the dev')}:", f"font-size: 22pt;font-family: \"{globals.dispfont}\";font-weight: bold;"))        
         self.layout.addWidget(QLinkLabel(_("Hi, my name is Martí, and i am the <i>developer</i> of WingetUI. WingetUI has been entirely made on my free time!")))
         self.layout.addWidget(QLinkLabel(_("Check out my {0} and my {1}!").format(f"<a style=\"color:{blueColor}\" href=\"https://github.com/martinet101\">{_('GitHub profile')}</a>", f"<a style=\"color:{blueColor}\" href=\"http://www.somepythonthings.tk\">{_('homepage')}</a>")))
         self.layout.addWidget(QLinkLabel(_("Do you find WingetUI useful? You'd like to support the developer? If so, you can {0}, it helps a lot!").format(f"<a style=\"color:{blueColor}\" href=\"https://ko-fi.com/martinet101\">{_('buy me a coffee')}</a>")))
 
         self.layout.addSpacing(15)
-        self.layout.addWidget(QLinkLabel(f"{_('Licenses')}:", "font-size: 22pt;font-family: \"Segoe UI Variable Display\";font-weight: bold;"))
+        self.layout.addWidget(QLinkLabel(f"{_('Licenses')}:", f"font-size: 22pt;font-family: \"{globals.dispfont}\";font-weight: bold;"))
         self.layout.addWidget(QLabel())
         self.layout.addWidget(QLinkLabel(f"WingetUI:&nbsp;&nbsp;&nbsp;&nbsp;LGPL v2.1:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&thinsp;<a style=\"color: {blueColor};\" href=\"https://github.com/martinet101/WinGetUI/blob/main/LICENSE\">https://github.com/martinet101/WinGetUI/blob/main/LICENSE</a>"))
         self.layout.addWidget(QLabel())
@@ -1934,7 +1949,7 @@ class SettingsSection(QScrollArea):
         self.layout.addWidget(self.announcements)
         title = QLabel(_("WingetUI Settings"))
 
-        title.setStyleSheet(f"font-size: 40px;font-family: \"Segoe UI Variable Display\";font-weight: bold;")
+        title.setStyleSheet(f"font-size: 30pt;font-family: \"{globals.dispfont}\";font-weight: bold;")
         self.layout.addWidget(title)
         self.layout.addSpacing(20)
 
@@ -2115,9 +2130,9 @@ class SettingsSection(QScrollArea):
 
 
 
-        self.pacmanPrefs = QSettingsTitle(_("Package managers preferences"), getMedia("trolley"), _("Package manager specific preferences"))
+        self.pacmanPrefs = QSettingsTitle(_("Winget preferences"), getMedia("winget"), _("Winget package manager specific preferences"))
         self.layout.addWidget(self.pacmanPrefs)
-
+        
         parallelInstalls = QSettingsCheckBox(_("Allow parallel installs (NOT RECOMMENDED)"))
         parallelInstalls.setChecked(getSettings("AllowParallelInstalls"))
         parallelInstalls.stateChanged.connect(lambda v: setSettings("AllowParallelInstalls", bool(v)))
@@ -2126,16 +2141,21 @@ class SettingsSection(QScrollArea):
         disableWinget.setChecked(getSettings("DisableWinget"))
         disableWinget.stateChanged.connect(lambda v: setSettings("DisableWinget", bool(v)))
         self.pacmanPrefs.addWidget(disableWinget)
-        disableScoop = QSettingsCheckBox(_("Disable Scoop"))
-        disableScoop.setChecked(getSettings("DisableScoop"))
-        disableScoop.stateChanged.connect(lambda v: setSettings("DisableScoop", bool(v)))
-        self.pacmanPrefs.addWidget(disableScoop)
+        button = QSettingsButton(_("Reset Winget sources (might help if no packages are listed)"), _("Reset"))
+        button.clicked.connect(lambda: (setSettings("DisableScoop", True), disableScoop.setChecked(False), os.startfile(os.path.join(realpath, "resources/reset_winget_sources.cmd"))))
+        self.pacmanPrefs.addWidget(button)
+        
+        self.pacmanPrefs = QSettingsTitle(_("Scoop preferences"), getMedia("scoop"), _("Scoop package manager specific preferences"))
+        self.layout.addWidget(self.pacmanPrefs)
+
         scoopPreventCaps = QSettingsCheckBox(_("Show Scoop apps as lowercase"))
         scoopPreventCaps.setChecked(getSettings("LowercaseScoopApps"))
         scoopPreventCaps.stateChanged.connect(lambda v: setSettings("LowercaseScoopApps", bool(v)))
         self.pacmanPrefs.addWidget(scoopPreventCaps)
-        
-
+        disableScoop = QSettingsCheckBox(_("Disable Scoop"))
+        disableScoop.setChecked(getSettings("DisableScoop"))
+        disableScoop.stateChanged.connect(lambda v: setSettings("DisableScoop", bool(v)))
+        self.pacmanPrefs.addWidget(disableScoop)
         button = QSettingsButton(_("Add a bucket to Scoop"), _("Add"))
         button.clicked.connect(lambda: self.scoopAddExtraBucket())
         button.setStyleSheet("QWidget#stBtn{border-bottom-left-radius: 0;border-bottom-right-radius: 0;border-bottom: 0;}")
@@ -2145,7 +2165,11 @@ class SettingsSection(QScrollArea):
         self.pacmanPrefs.addWidget(button)
         button.setStyleSheet("QWidget#stBtn{border-bottom-left-radius: 0;border-bottom-right-radius: 0;border-bottom: 0;}")
         button = QSettingsButton(_("Install Scoop"), _("Install"))
+        button.setStyleSheet("QWidget#stBtn{border-bottom-left-radius: 0;border-bottom-right-radius: 0;border-bottom: 0;}")
         button.clicked.connect(lambda: (setSettings("DisableScoop", False), disableScoop.setChecked(False), os.startfile(os.path.join(realpath, "resources/install_scoop.cmd"))))
+        self.pacmanPrefs.addWidget(button)
+        button = QSettingsButton(_("Uninstall Scoop (and its packages)"), _("Uninstall"))
+        button.clicked.connect(lambda: (setSettings("DisableScoop", True), disableScoop.setChecked(True), os.startfile(os.path.join(realpath, "resources/uninstall_scoop.cmd"))))
         self.pacmanPrefs.addWidget(button)
         self.layout.addStretch()
         
