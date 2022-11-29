@@ -66,8 +66,10 @@ def searchForUpdates(signal: Signal, finishSignal: Signal) -> None:
     counter = 0
     while p.poll() is None:
         line = p.stdout.readline()
-        line = line.strip()
+        line = line.strip().replace(b':', b'').replace(b' -> ', b' ')
         if line:
+            if(counter > 1 and b'These applications' in line):
+                break
             if(counter > 1 and not b"---" in line):
                 output.append(ansi_escape.sub('', str(line, encoding='utf-8', errors="ignore").strip()))
             else:
