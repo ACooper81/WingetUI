@@ -37,7 +37,7 @@ def searchForInstalledPackage(signal: Signal, finishSignal: Signal) -> None:
     counter = 1
     while p.poll() is None:
         line = p.stdout.readline()
-        line = line.strip()
+        line = line.strip().replace(b' *global* ', b' ').replace(b'[', b'').replace(b']', b'')
         if line:
             if(counter > 1 and not b"---" in line):
                 output.append(ansi_escape.sub('', str(line, encoding='utf-8', errors="ignore").strip()))
