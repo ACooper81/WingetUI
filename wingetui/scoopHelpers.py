@@ -93,11 +93,11 @@ def searchForUpdates(signal: Signal, finishSignal: Signal) -> None:
 def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = False) -> None:
     print(f"🟢 Starting get info for title {title}")
     title = title.lower()
-    p = subprocess.Popen(' '.join(["powershell", "-Command", "scoop", "info", f"{title}"]+ (["--verbose"] if verbose else [])), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, cwd=os.getcwd(), env=os.environ, shell=True)
+    p = subprocess.Popen(' '.join(["powershell", "-Command", "scoop", "info", f"{title.replace(' ', '-')}"]+ (["--verbose"] if verbose else [])), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, cwd=os.getcwd(), env=os.environ, shell=True)
     output = []
     unknownStr = "Unknown" if verbose else "Loading..."
     appInfo = {
-        "title": title,
+        "title": title.split("/")[-1],
         "id": id,
         "publisher": unknownStr,
         "author": unknownStr,
@@ -109,6 +109,7 @@ def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = Fa
         "installer-url": unknownStr,
         "installer-type": "Scoop shim",
         "manifest": unknownStr,
+        "updatedate": unknownStr,
         "versions": [],
     }
     while p.poll() is None:
@@ -135,6 +136,8 @@ def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = Fa
             version = line.replace("Version", "").strip()[1:].strip()
         elif("Updated by" in line):
             appInfo["publisher"] = line.replace("Updated by", "").strip()[1:].strip()
+        elif("Updated at" in line):
+            appInfo["updatedate"] = line.replace("Updated at", "").strip()[1:].strip()
         elif("License" in line):
             appInfo["license"] = line.replace("License", "").strip()[1:].strip().split("(")[0].strip()
             try:
@@ -190,7 +193,9 @@ def installAssistant(p: subprocess.Popen, closeAndInform: Signal, infoSignal: Si
             elif ("is already installed" in line):
                 outputCode = 0
             output += line+"\n"
-    if "requires admin rights" in output:
+    if "-g" in output:
+        outputCode = 1602
+    elif "requires admin rights" in output:
         outputCode = 1603
     closeAndInform.emit(outputCode, output)
 
@@ -214,7 +219,9 @@ def uninstallAssistant(p: subprocess.Popen, closeAndInform: Signal, infoSignal: 
             if("was uninstalled" in line):
                 outputCode = 0
             output += line+"\n"
-    if "requires admin rights" in output:
+    if "-g" in output:
+        outputCode = 1602
+    elif "requires admin rights" in output:
         outputCode = 1603
     closeAndInform.emit(outputCode, output)
 

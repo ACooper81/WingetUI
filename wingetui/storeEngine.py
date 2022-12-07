@@ -148,7 +148,12 @@ class PackageInstallerWidget(QGroupBox):
             self.t = KillableThread(target=wingetHelpers.installAssistant, args=(self.p, self.finishInstallation, self.addInfoLine, self.counterSignal))
             self.t.start()
         elif("scoop" in self.store.lower()):
-            self.p = subprocess.Popen(' '.join(self.adminstr + ["powershell", "-Command", "scoop", "install", f"{self.packageId if self.packageId != '' else self.programName}"] + self.cmdline_args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, shell=True, cwd=sudoLocation, env=os.environ)
+            cprint(self.store.lower())
+            bucket_prefix = ""
+            if len(self.store.lower().split(":"))>1 and not "/" in self.packageId:
+                bucket_prefix = self.store.lower().split(":")[1].replace(" ", "")+"/"
+            self.p = subprocess.Popen(' '.join(self.adminstr + ["powershell", "-Command", "scoop", "install", f"{bucket_prefix+self.packageId if self.packageId != '' else bucket_prefix+self.programName}"] + self.cmdline_args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, shell=True, cwd=sudoLocation, env=os.environ)
+            print(self.p.args)
             self.t = KillableThread(target=scoopHelpers.installAssistant, args=(self.p, self.finishInstallation, self.addInfoLine, self.counterSignal))
             self.t.start()
         else:
@@ -192,7 +197,11 @@ class PackageInstallerWidget(QGroupBox):
         except: pass
     
     def finish(self, returncode: int, output: str = "") -> None:
-        if returncode == 1603:
+        if returncode == 1602:
+            self.adminstr = [sudoPath]
+            self.cmdline_args.append("--global")
+            self.runInstallation()
+        elif returncode == 1603:
             self.adminstr = [sudoPath]
             self.runInstallation()
         else:
@@ -216,6 +225,7 @@ class PackageInstallerWidget(QGroupBox):
                     if type(self) == PackageInstallerWidget:
                         if self.packageItem:
                             globals.uninstall.addItem(self.packageItem.text(0), self.packageItem.text(1), self.packageItem.text(2), self.packageItem.text(3)) # Add the package on the uninstaller
+                            globals.uninstall.updatePackageNumber()
                     self.startCoolDown()
                 else:
                     globals.trayIcon.setIcon(QIcon(getMedia("yellowicon"))) 
@@ -252,19 +262,24 @@ class PackageInstallerWidget(QGroupBox):
 
     def startCoolDown(self):
         if not getSettings("MaintainSuccessfulInstalls"):
-            op1=QGraphicsOpacityEffect(self)
-            op2=QGraphicsOpacityEffect(self)
-            op3=QGraphicsOpacityEffect(self)
-            op4=QGraphicsOpacityEffect(self)
-            op5=QGraphicsOpacityEffect(self)
-            ops = [op1, op2, op3, op4, op5]
+            self.ops = -1
+            def setUpOPS():
+                op1=QGraphicsOpacityEffect(self)
+                op2=QGraphicsOpacityEffect(self)
+                op3=QGraphicsOpacityEffect(self)
+                op4=QGraphicsOpacityEffect(self)
+                op5=QGraphicsOpacityEffect(self)
+                ops = [op1, op2, op3, op4, op5]
+                return ops
             
             def updateOp(v: float):
                 i = 0
+                if self.ops == -1:
+                    self.ops = setUpOPS()
                 for widget in [self.cancelButton, self.label, self.progressbar, self.info, self.liveOutputButton]:
-                    ops[i].setOpacity(v)
+                    self.ops[i].setOpacity(v)
                     widget: QWidget
-                    widget.setGraphicsEffect(ops[i])
+                    widget.setGraphicsEffect(self.ops[i])
                     widget.setAutoFillBackground(True)
                     i += 1
 
@@ -350,7 +365,11 @@ class PackageUpdaterWidget(PackageInstallerWidget):
             self.t.start()
 
     def finish(self, returncode: int, output: str = "") -> None:
-        if returncode == 1603:
+        if returncode == 1602:
+            self.adminstr = [sudoPath]
+            self.cmdline_args.append("--global")
+            self.runInstallation()
+        elif returncode == 1603:
             self.adminstr = [sudoPath]
             self.runInstallation()
         else:
@@ -465,7 +484,11 @@ class PackageUninstallerWidget(PackageInstallerWidget):
         except: pass
         
     def finish(self, returncode: int, output: str = "") -> None:
-        if returncode == 1603:
+        if returncode == 1602:
+            self.adminstr = [sudoPath]
+            self.cmdline_args.append("--global")
+            self.runInstallation()
+        elif returncode == 1603:
             self.adminstr = [sudoPath]
             self.runInstallation()
         else:
@@ -475,6 +498,7 @@ class PackageUninstallerWidget(PackageInstallerWidget):
                         self.packageItem.setHidden(True)
                         i = self.packageItem.treeWidget().takeTopLevelItem(self.packageItem.treeWidget().indexOfTopLevelItem(self.packageItem))
                         del i
+                        globals.uninstall.updatePackageNumber()
                     except Exception as e:
                         report(e)
             self.finishedInstallation = True
@@ -683,7 +707,7 @@ class PackageInfoPopupWindow(QWidget):
                 return super().resizeEvent(event)
 
             def showBigImage(self):
-                p = self.currentPixmap.scaledToWidth(self.parentwidget.width()-55)
+                p = self.currentPixmap.scaledToWidth(self.parentwidget.width()-55, Qt.SmoothTransformation)
                 if not p.isNull():
                     blackCover.show()
                     self.viewer.setPixmap(p)
@@ -801,6 +825,9 @@ class PackageInfoPopupWindow(QWidget):
         self.type = QLinkLabel(_('Installer Type (Latest Version):')+" "+_('Unknown'))
         self.type.setWordWrap(True)
         self.layout.addWidget(self.type)
+        self.date = QLinkLabel(_('Last updated:')+" "+_('Unknown'))
+        self.date.setWordWrap(True)
+        self.layout.addWidget(self.date)
         self.storeLabel = QLinkLabel(f"Source: {self.store}")
         self.storeLabel.setWordWrap(True)
         self.layout.addWidget(self.storeLabel)
@@ -927,6 +954,7 @@ class PackageInfoPopupWindow(QWidget):
         self.type.setText(f"{_('Installer Type')} ({_('Latest Version')}): {_('Loading...')}")
         self.packageId.setText(f"{_('Package ID')}: {_('Loading...')}")
         self.manifest.setText(f"{_('Manifest')}: {_('Loading...')}")
+        self.date.setText(f"{_('Last updated')}: {_('Loading...')}")
         self.storeLabel.setText(f"{_('Source')}: {self.store.capitalize()}")
         self.versionCombo.addItems([_("Loading...")])
 
@@ -943,7 +971,10 @@ class PackageInfoPopupWindow(QWidget):
         if(store.lower()=="winget"):
             Thread(target=wingetHelpers.getInfo, args=(self.loadInfo, title, id, useId), daemon=True).start()
         elif("scoop" in store.lower()):
-            Thread(target=scoopHelpers.getInfo, args=(self.loadInfo, title, id, useId), daemon=True).start()
+            bucket_prefix = ""
+            if len(self.store.lower().split(":"))>1 and not "/" in id and not "/" in title:
+                bucket_prefix = self.store.lower().split(":")[1].replace(" ", "")+"/"
+            Thread(target=scoopHelpers.getInfo, args=(self.loadInfo, bucket_prefix+title, bucket_prefix+id, useId), daemon=True).start()
 
     def loadPackageIcon(self, id: str, store: str) -> None:
         try:
@@ -1061,6 +1092,7 @@ class PackageInfoPopupWindow(QWidget):
         self.link.setText(f"{_('Installer URL')} ({_('Latest Version')}): <a style=\"color: {blueColor};\" href=\"{appInfo['installer-url']}\">{appInfo['installer-url']}</a>")
         self.type.setText(f"{_('Installer Type')} ({_('Latest Version')}): {appInfo['installer-type']}")
         self.packageId.setText(f"{_('Package ID')}: {appInfo['id']}")
+        self.date.setText(f"{_('Last updated')}: {appInfo['updatedate']}")
         self.manifest.setText(f"{_('Manifest')}: <a style=\"color: {blueColor};\" href=\"{'file:///' if not 'https' in appInfo['manifest'] else ''}"+appInfo['manifest'].replace('\\', '/')+f"\">{appInfo['manifest']}</a>")
         while self.versionCombo.count()>0:
             self.versionCombo.removeItem(0)

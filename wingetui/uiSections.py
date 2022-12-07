@@ -443,7 +443,7 @@ class DiscoverSoftwareSection(QWidget):
         if not "scoop" in store.lower():
                 self.addInstallation(PackageInstallerWidget(title, "winget", useId=not("…" in id), packageId=id, admin=admin, args=list(filter(None, ["--interactive" if interactive else "--silent", "--force" if skiphash else ""])), packageItem=packageItem))
         else:
-                self.addInstallation(PackageInstallerWidget(title, "scoop", useId=not("…" in id), packageId=id, admin=admin, args=["--skip" if skiphash else ""], packageItem=packageItem))
+                self.addInstallation(PackageInstallerWidget(title, store, useId=not("…" in id), packageId=id, admin=admin, args=["--skip" if skiphash else ""], packageItem=packageItem))
     
     def reload(self) -> None:
         self.packageReference = {}
@@ -1040,17 +1040,19 @@ class UpdateSoftwareSection(QWidget):
                 self.availableUpdates += 1
         self.countLabel.setText(_("Available updates: {0}").format(self.availableUpdates))
         globals.trayIcon.setToolTip("WingetUI" if self.availableUpdates == 0 else (_("WingetUI - 1 update is available") if self.availableUpdates == 1 else _("WingetUI - {0} updates are available").format(self.availableUpdates)) )
-        globals.trayMenuUpdatesList.menuAction().setText(_("{0} updates found").format(self.availableUpdates))
+        globals.trayMenuUpdatesList.menuAction().setText(_("{0} updates were found" if self.availableUpdates!=1 else "{0} update was found").format(self.availableUpdates))
         if self.availableUpdates > 0:
             self.packageList.label.hide()
             self.packageList.label.setText("")
             self.img.setPixmap(QIcon(getMedia("alert_laptop")).pixmap(QSize(64, 64)))
+            globals.updatesAction.setIcon(QIcon(getMedia("alert_laptop")))
             globals.app.uaAction.setEnabled(True)
             globals.trayIcon.setIcon(QIcon(getMedia("greenicon")))
         else:
             self.packageList.label.setText(_("Hooray! No updates were found!"))
             self.packageList.label.show()
             globals.app.uaAction.setEnabled(False)
+            globals.updatesAction.setIcon(QIcon(getMedia("checked_laptop")))
             globals.trayIcon.setIcon(QIcon(getMedia("greyicon")))
             self.img.setPixmap(QIcon(getMedia("checked_laptop")).pixmap(QSize(64, 64)))
     
@@ -1078,7 +1080,7 @@ class UpdateSoftwareSection(QWidget):
             if not "scoop" in store.lower():
                     self.addInstallation(PackageUpdaterWidget(title, "winget", useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, args=list(filter(None, ["--interactive" if interactive else "--silent", "--force" if skiphash else ""]))))
             else:
-                    self.addInstallation(PackageUpdaterWidget(title, "scoop",  useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, args=["--skip" if skiphash else ""]))
+                    self.addInstallation(PackageUpdaterWidget(title, store,  useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, args=["--skip" if skiphash else ""]))
      
 
     def openInfo(self, title: str, id: str, store: str, packageItem: TreeWidgetItemWithQAction = None) -> None:
@@ -1172,6 +1174,7 @@ class UninstallSoftwareSection(QWidget):
     addProgram = Signal(str, str, str, str)
     finishLoading = Signal(str)
     clearList = Signal()
+    callInMain = Signal(object)
     askForScoopInstall = Signal(str)
     setLoadBarValue = Signal(str)
     startAnim = Signal(QVariantAnimation)
@@ -1184,6 +1187,7 @@ class UninstallSoftwareSection(QWidget):
     def __init__(self, parent = None):
         super().__init__(parent = parent)
         self.scoopLoaded = False
+        self.callInMain.connect(lambda f: f())
         self.wingetLoaded = False
         self.infobox = globals.infobox
         self.setStyleSheet("margin: 0px;")
@@ -1547,20 +1551,38 @@ class UninstallSoftwareSection(QWidget):
                         toUninstall.append(program)
                 except AttributeError:
                     pass
-        conf = False
-        if len(toUninstall) == 1:
-            conf = MessageBox.question(self, _("Are you sure?"), _("Do you really want to uninstall {0}?").format(toUninstall[0].text(1)), MessageBox.No | MessageBox.Yes, MessageBox.Yes) == MessageBox.Yes
-        elif len(toUninstall) > 1:
-            conf = MessageBox.question(self, _("Are you sure?"), _("Do you really want to uninstall {0} packages?").format(len(toUninstall)), MessageBox.No | MessageBox.Yes, MessageBox.Yes) == MessageBox.Yes
-        if conf:
+        a = ErrorMessage(self)
+        Thread(target=self.confirmUninstallSelected, args=(toUninstall, a,)).start()
+        
+    def confirmUninstallSelected(self, toUninstall: list[TreeWidgetItemWithQAction], a: ErrorMessage):
+        questionData = {
+            "titlebarTitle": "Wait!",
+            "mainTitle": _("Are you sure?"),
+            "mainText": _("Do you really want to uninstall {0}?").format(toUninstall[0].text(1)) if len(toUninstall) == 1 else  _("Do you really want to uninstall {0} packages?").format(len(toUninstall)),
+            "acceptButtonTitle": "Yes",
+            "cancelButtonTitle": "No",
+            "icon": QIcon(),
+        }
+        if a.askQuestion(questionData):
             for program in toUninstall:
-                self.uninstall(program.text(1), program.text(2), program.text(4), packageItem=program, avoidConfirm=True)
+                self.callInMain.emit(partial(self.uninstall, program.text(1), program.text(2), program.text(4), packageItem=program, avoidConfirm=True))
 
     def openInfo(self, title: str, id: str, store: str, packageItem: TreeWidgetItemWithQAction) -> None:
         self.infobox.loadProgram(title, id, useId=not("…" in id), store=store, packageItem=packageItem)
         self.infobox.show()
-        #ApplyMenuBlur(self.infobox.winId(), self.infobox, avoidOverrideStyleSheet=True, shadow=False)
 
+    def updatePackageNumber(self, showQueried: bool = False, foundResults: int = 0):
+        self.foundPackages = 0
+        for item in self.packageList.findItems('', Qt.MatchContains, 1):
+            self.foundPackages += 1
+        self.countLabel.setText(_("{0} packages found").format(self.foundPackages))
+        globals.trayMenuInstalledList.menuAction().setText(_("{0} packages were found" if self.foundPackages!=1 else "{0} package was found").format(self.foundPackages))
+        if self.foundPackages > 0:
+            self.packageList.label.hide()
+            self.packageList.label.setText("")
+        else:
+            self.packageList.label.setText(_("Hooray! No updates were found!"))
+            self.packageList.label.show()
 
     def finishLoadingIfNeeded(self, store: str) -> None:
         if(store == "winget"):
@@ -1694,18 +1716,31 @@ class UninstallSoftwareSection(QWidget):
     def showQuery(self) -> None:
         self.programbox.show()
         self.infobox.hide()
+                
+    def confirmUninstallSelected(self, toUninstall: list[TreeWidgetItemWithQAction], a: ErrorMessage):
+        questionData = {
+            "titlebarTitle": "Wait!",
+            "mainTitle": _("Are you sure?"),
+            "mainText": _("Do you really want to uninstall {0}?").format(toUninstall[0].text(1)) if len(toUninstall) == 1 else  _("Do you really want to uninstall {0} packages?").format(len(toUninstall)),
+            "acceptButtonTitle": "Yes",
+            "cancelButtonTitle": "No",
+            "icon": QIcon(),
+        }
+        if a.askQuestion(questionData):
+            for program in toUninstall:
+                self.callInMain.emit(partial(self.uninstall, program.text(1), program.text(2), program.text(4), packageItem=program, avoidConfirm=True))
+
 
     def uninstall(self, title: str, id: str, store: str, packageItem: TreeWidgetItemWithQAction = None, admin: bool = False, removeData: bool = False, interactive: bool = False, avoidConfirm: bool = False) -> None:
-        if avoidConfirm:
-            answer = True
+        if not avoidConfirm:
+            a = ErrorMessage(self)
+            Thread(target=self.confirmUninstallSelected, args=([packageItem], a)).start()
         else:
-            answer = MessageBox.question(self, _("Are you sure?"), _("Do you really want to uninstall {0}?").format(title), MessageBox.No | MessageBox.Yes, MessageBox.Yes) == MessageBox.Yes
-        if answer:
             print("🔵 Uninstalling", id)
             if not "scoop" in store.lower():
                     self.addInstallation(PackageUninstallerWidget(title, "winget", useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, removeData=removeData, args=["--interactive" if interactive else "--silent"]))
             else:
-                    self.addInstallation(PackageUninstallerWidget(title, "scoop" , useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, removeData=removeData))
+                    self.addInstallation(PackageUninstallerWidget(title, store , useId=not("…" in id), packageId=id, packageItem=packageItem, admin=admin, removeData=removeData))
 
     def reload(self) -> None:
         self.scoopLoaded = False
