@@ -2,6 +2,7 @@ from random import vonmisesvariate
 from PySide6.QtCore import *
 import subprocess, os, sys, re
 from tools import *
+from tools import _
 
 ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
 
@@ -95,7 +96,7 @@ def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = Fa
     title = title.lower()
     p = subprocess.Popen(' '.join(["powershell", "-Command", "scoop", "info", f"{title.replace(' ', '-')}"]+ (["--verbose"] if verbose else [])), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.PIPE, cwd=os.getcwd(), env=os.environ, shell=True)
     output = []
-    unknownStr = "Unknown" if verbose else "Loading..."
+    unknownStr = _("Unknown") if verbose else _("Loading...")
     appInfo = {
         "title": title.split("/")[-1],
         "id": id,
@@ -107,13 +108,15 @@ def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = Fa
         "license-url": unknownStr,
         "installer-sha256": unknownStr,
         "installer-url": unknownStr,
-        "installer-type": "Scoop shim",
+        "installer-type": _("Scoop shim"),
         "manifest": unknownStr,
         "updatedate": unknownStr,
+        "releasenotes": unknownStr,
         "versions": [],
     }
     while p.poll() is None:
-        line = p.stdout.readline()
+        pass
+    for line in p.stdout.readlines():
         line = line.strip()
         if line:
             output.append(ansi_escape.sub('', str(line, encoding='utf-8', errors="ignore")))
@@ -132,10 +135,12 @@ def getInfo(signal: Signal, title: str, id: str, useId: bool, verbose: bool = Fa
                 for e in ("https://", "http://", "www.", ".com", ".net", ".io", ".org", ".us", ".eu", ".es", ".tk", ".co.uk", ".in", ".it", ".fr", ".de", ".kde", ".microsoft"):
                     w = w.replace(e, "")
                 appInfo["author"] = w.split("/")[0].capitalize()
-        elif("Version" in line):
+        elif("Version " in line):
             version = line.replace("Version", "").strip()[1:].strip()
         elif("Updated by" in line):
             appInfo["publisher"] = line.replace("Updated by", "").strip()[1:].strip()
+        elif("Notes" in line):
+            appInfo["releasenotes"] = line.replace("Notes", "").strip()[1:].strip()
         elif("Updated at" in line):
             appInfo["updatedate"] = line.replace("Updated at", "").strip()[1:].strip()
         elif("License" in line):
