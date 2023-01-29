@@ -14,10 +14,10 @@ try:
     import globals
     from blurwindow import GlobalBlur, ExtendFrameIntoClientArea
 
-    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
-        QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
-        QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    #if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    #    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    #if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    #    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
 
     class MainApplication(QApplication):
         kill = Signal()
@@ -56,7 +56,7 @@ try:
                 ApplyMenuBlur(self.popup.winId().__int__(), self.popup)
                 
                 self.loadingProgressBar = QProgressBar(self.popup)
-                self.loadingProgressBar.setStyleSheet(f"""QProgressBar {{border-radius: 2px;height: 4px;border: 0px;}}QProgressBar::chunk {{background-color: rgb({colors[2 if isDark() else 3]});border-radius: 2px;}}""")
+                self.loadingProgressBar.setStyleSheet(f"""QProgressBar {{border-radius: 2px;height: 4px;border: 0px;background-color: transparent;}}QProgressBar::chunk {{background-color: rgb({colors[2 if isDark() else 3]});border-radius: 2px;}}""")
                 self.loadingProgressBar.setRange(0, 1000)
                 self.loadingProgressBar.setValue(0)
                 self.loadingProgressBar.setGeometry(QRect(0, 396, 600, 4))
@@ -277,21 +277,14 @@ try:
 
                 menu = QMenu("WingetUI")
                 globals.trayMenu = menu
-                self.infoAction = QAction(_("WingetUI version {0}").format(versionName), menu)
-                self.infoAction.setIcon(QIcon(getMedia("info")))
-                self.infoAction.setEnabled(False)
-                menu.addAction(self.infoAction)
-                
-                self.showAction = QAction(_("Show WingetUI"), menu)
-                self.showAction.setIcon(QIcon(getMedia("menu_show")))
-                menu.addAction(self.showAction)
                 self.trayIcon.setContextMenu(menu)
+                self.discoverPackages = QAction(_("Discover Packages"), menu)
+                menu.addAction(self.discoverPackages)
                 menu.addSeparator()
                 
-                self.dAction = QAction(_("Available updates"), menu)
-                self.dAction.setIcon(QIcon(getMedia("menu_updates")))
-                self.dAction.setEnabled(False)
-                menu.addAction(self.dAction)
+                self.updatePackages = QAction(_("Available Updates"), menu)
+                globals.updatesAction = self.updatePackages
+                menu.addAction(self.updatePackages)
                 
                 self.updatesMenu = menu.addMenu(_("0 updates found"))
                 self.updatesMenu.menuAction().setIcon(QIcon(getMedia("list")))
@@ -309,10 +302,8 @@ try:
                 menu.addAction(self.uaAction)
                 menu.addSeparator()
                 
-                self.iAction = QAction(_("Installed packages"),menu)
-                self.iAction.setIcon(QIcon(getMedia("menu_uninstall")))
-                self.iAction.setEnabled(False)
-                menu.addAction(self.iAction)
+                self.uninstallPackages = QAction(_("Installed Packages"),menu)
+                menu.addAction(self.uninstallPackages)
                 
                 self.installedMenu = menu.addMenu(_("0 packages found"))
                 self.installedMenu.menuAction().setIcon(QIcon(getMedia("list")))
@@ -325,6 +316,18 @@ try:
                 globals.installedHeader.setIcon(QIcon(getMedia("version")))
                 globals.installedHeader.setEnabled(False)
                 self.installedMenu.addAction(globals.installedHeader)
+                
+                self.infoAction = QAction(_("About WingetUI version {0}").format(versionName), menu)
+                self.infoAction.setIcon(QIcon(getMedia("info")))
+                menu.addAction(self.infoAction)
+                self.showAction = QAction(_("Show WingetUI"), menu)
+                self.showAction.setIcon(QIcon(getMedia("icon")))
+                menu.addAction(self.showAction)
+                menu.addSeparator()
+
+                self.settings = QAction(_("WingetUI Settings"), menu)
+                menu.addAction(self.settings)
+                
 
                 self.quitAction = QAction(menu)
                 self.quitAction.setIcon(QIcon(getMedia("menu_close")))
@@ -332,30 +335,59 @@ try:
                 self.quitAction.triggered.connect(lambda: (self.quit(), sys.exit(0)))
                 menu.addAction(self.quitAction)
                 
+                self.updatePackages.setIcon(QIcon(getMedia("alert_laptop")))
+                self.discoverPackages.setIcon(QIcon(getMedia("desktop_download")))
+                self.settings.setIcon(QIcon(getMedia("settings_gear")))
+                self.uninstallPackages.setIcon(QIcon(getMedia("workstation")))
+                
                 def showWindow():
                     # This function will be defined when the mainWindow gets defined
                     pass
                 
-                self.trayIcon.activated.connect(lambda r: (applyMenuStyle(),menu.exec(QCursor.pos())) if r == QSystemTrayIcon.Context else showWindow())
+                def showMenu():
+                    pos = QCursor.pos()   
+                    s = self.screenAt(pos)
+                    if isW11 and (pos.y()+48) > (s.geometry().y() + s.geometry().height()):
+                            menu.move(pos)
+                            menu.show()
+                            sy = s.geometry().y()+s.geometry().height()
+                            sx = s.geometry().x()+s.geometry().width()
+                            pos.setY(sy-menu.height()-54) # Show the context menu a little bit over the taskbar
+                            pos.setX(sx-menu.width()-6) # Show the context menu a little bit over the taskbar
+                            menu.move(pos)
+                    else:
+                        menu.exec(pos)
+                self.trayIcon.activated.connect(lambda r: (applyMenuStyle(), showMenu()) if r == QSystemTrayIcon.Context else showWindow())
+                
                 self.trayIcon.messageClicked.connect(lambda: showWindow())
                 self.installedMenu.aboutToShow.connect(lambda: applyMenuStyle())
                 self.updatesMenu.aboutToShow.connect(lambda: applyMenuStyle())
 
                 def applyMenuStyle():
                     for mn in (menu, self.updatesMenu, self.installedMenu):
-                        if isDark():
-                            GlobalBlur(mn.winId().__int__(), Acrylic=True, hexColor="#21212140", Dark=True)
-                            ExtendFrameIntoClientArea(mn.winId().__int__())
-                            mn.setStyleSheet(menuDarkCSS)
+                        mn.setObjectName("MenuMenuMenu")
+                        if not isDark():
+                            ss = f'#{mn.objectName()}{{background-color: {"rgba(220, 220, 220, 1%)" if isW11 else "rgba(255, 255, 255, 30%);border-radius: 0px;" };}}'
                         else:
-                            GlobalBlur(mn.winId().__int__(), Acrylic=True, hexColor="#eeeeee40", Dark=False)
+                            ss = f'#{mn.objectName()}{{background-color: {"rgba(220, 220, 220, 1%)" if isW11 else "rgba(20, 20, 20, 25%);border-radius: 0px;"};}}'
+                        if isDark():
                             ExtendFrameIntoClientArea(mn.winId().__int__())
-                            mn.setStyleSheet(menuLightCSS)
+                            mn.setStyleSheet(menuDarkCSS+ss)
+                            GlobalBlur(mn.winId().__int__(), Acrylic=True, hexColor="#21212140", Dark=True)
+                        else:
+                            ExtendFrameIntoClientArea(mn.winId().__int__())
+                            mn.setStyleSheet(menuLightCSS+ss)
+                            GlobalBlur(mn.winId().__int__(), Acrylic=True, hexColor="#eeeeee40", Dark=False)
 
                 self.setStyle("winvowsvista")
                 globals.darkCSS = darkCSS.replace("Segoe UI Variable Text", globals.textfont).replace("Segoe UI Variable Display", globals.dispfont).replace("Segoe UI Variable Display Semib", globals.dispfontsemib)
                 globals.lightCSS = lightCSS.replace("Segoe UI Variable Text", globals.textfont).replace("Segoe UI Variable Display", globals.dispfont).replace("Segoe UI Variable Display Semib", globals.dispfontsemib)
                 self.window = RootWindow()
+                self.discoverPackages.triggered.connect(lambda: self.window.showWindow(0))
+                self.updatePackages.triggered.connect(lambda: self.window.showWindow(1))
+                self.uninstallPackages.triggered.connect(lambda: self.window.showWindow(2))
+                self.infoAction.triggered.connect(lambda: self.window.showWindow(4))
+                self.settings.triggered.connect(lambda: self.window.showWindow(3))
                 globals.mainWindow = self.window
                 self.showAction.triggered.connect(self.window.showWindow)
                 self.uaAction.triggered.connect(self.window.updates.upgradeAllAction.trigger)
@@ -400,7 +432,6 @@ try:
         def reloadWindow(self):
             cprint("Reloading...")
             self.infoAction.setIcon(QIcon(getMedia("info")))
-            self.dAction.setIcon(QIcon(getMedia("menu_updates")))
             self.updatesMenu.menuAction().setIcon(QIcon(getMedia("list")))
             globals.updatesHeader.setIcon(QIcon(getMedia("version")))
             self.uaAction.setIcon(QIcon(getMedia("menu_installall")))
@@ -491,6 +522,13 @@ try:
                     print("🟢 Updates not found")
 
     colors = getColors()
+    isW11 = False
+    try:
+        import platform
+        if int(platform.version().split('.')[2]) >= 22000:
+            isW11 = True
+    except Exception as e:
+        report(e)
 
     darkCSS = f"""
     * {{
@@ -507,7 +545,7 @@ try:
         padding: 2px;
         outline: 0px;
         color: white;
-        background: #262626;
+        background: transparent;
         border-radius: 8px;
     }}
     QMenu::separator {{
@@ -816,6 +854,7 @@ try:
         border-top-left-radius: 6px;
         border-bottom-left-radius: 6px;
         border-left: 1px solid #1f1f1f;
+        margin-left: 0px;
     }}
     QTreeWidget::item:last {{
         border-top-right-radius: 6px;
@@ -1413,7 +1452,7 @@ try:
         color: black;
         padding: 5px;
         border-radius: 6px;
-        border: 0.6px solid rgba(86, 86, 86, 25%);
+        border: 1px solid rgba(86, 86, 86, 25%);
         border-bottom: 2px solid rgb({colors[3]});
     }}
     QLineEdit:disabled {{
@@ -1423,7 +1462,7 @@ try:
         width: 300px;
         padding: 5px;
         border-radius: 6px;
-        border: 0.6px solid rgba(255, 255, 255, 55%);
+        border: 1px solid rgba(255, 255, 255, 55%);
     }}
     QScrollBar:vertical {{
         background: transparent;
@@ -1516,7 +1555,7 @@ try:
         outline: none;
         background-color: rgba(240, 240, 240, 90%);
         height: 25px;
-        border-bottom: 1px solid rgba(220, 220, 220, 80%);
+        border-bottom: 1px solid rgba(220, 220, 220, 70%);
         border-top: 1px solid rgba(220, 220, 220, 80%);
         color: rgb({colors[5]});
     }}
@@ -1527,9 +1566,9 @@ try:
         padding-top: 3px;
         padding-bottom: 3px;
         outline: none;
-        background-color: rgba(255, 255, 255, 90%);
+        background-color: rgba(230, 230, 230, 90%);
         height: 25px;
-        border-bottom: 1px solid rgba(220, 220, 220, 80%);
+        border-bottom: 1px solid rgba(230, 230, 230, 70%);
         border-top: 1px solid rgba(220, 220, 220, 80%);
     }}
     QTreeWidget::item:first {{
